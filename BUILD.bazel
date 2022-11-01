@@ -1,0 +1,21 @@
+# -*- python -*-
+
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+package(default_visibility = ["//visibility:public"])
+
+cmake(
+    name = "proxsuite",
+    lib_source = ":proxsuite_srcs",
+    cache_entries = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF",
+        "BUILD_PYTHON_INTERFACE": "OFF",
+    },
+)
+
+filegroup(
+    name = "proxsuite_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//cmake_defines:__subpackages__"],
+)

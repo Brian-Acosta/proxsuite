@@ -54,7 +54,7 @@ option(INITIALIZE_EIGEN_WITH_NAN "Initializa Eigen objects with NAN values" OFF)
 option(SUFFIX_SO_VERSION "Suffix library name with its version" ON)
 
 option(BUILD_WITH_VECTORIZATION_SUPPORT
-       "Build the library with the support of modern SIMD instructions." ON)
+       "Build the library with the support of modern SIMD instructions." OFF)
 option(BUILD_BINDINGS_WITH_AVX2_SUPPORT "Build the bindings with AVX2 support."
        ON)
 option(BUILD_BINDINGS_WITH_AVX512_SUPPORT
