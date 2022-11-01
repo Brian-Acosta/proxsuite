@@ -4,8 +4,9 @@
 
 <p align="center">
   <a href="https://opensource.org/licenses/BSD-2-Clause"><img src="https://img.shields.io/badge/License-BSD%202--Clause-green.svg" alt="License"/></a>
-  <a href="https://github.com/jcarpent/proxqp-unofficial/actions/workflows/ci-linux-osx-with-conda.yml"><img src="https://github.com/jcarpent/proxqp-unofficial/actions/workflows/ci-linux-osx-with-conda.yml/badge.svg" alt="CI - Linux/OSX/Windows - Conda"></a>
+  <a href="https://github.com/Simple-Robotics/proxsuite/actions/workflows/ci-linux-osx-win-conda.yml"><img src="https://github.com/Simple-Robotics/proxsuite/actions/workflows/ci-linux-osx-win-conda.yml/badge.svg?branch=main" alt="CI - Linux/OSX/Windows - Conda"></a>
   <a href="https://badge.fury.io/py/proxsuite"><img src="https://badge.fury.io/py/proxsuite.svg" alt="PyPI version" height="20"></a>
+  <a href="https://anaconda.org/conda-forge/proxsuite"><img src="https://anaconda.org/conda-forge/proxsuite/badges/version.svg" alt="Conda version" height="20"></a>
 </p>
 
 **ProxSuite** is a collection of open-source, numerically robuste, precise and efficient numerical solvers (e.g., LPs, QPs, etc.) rooted on revisited primal-dual proximal algorithms.
@@ -14,18 +15,20 @@ Through **ProxSuite**, we aim at offering to the community scalable optimizers w
 
 **ProxSuite** is actively developped and supported by the [Willow](https://www.di.ens.fr/willow/) and [Sierra](https://www.di.ens.fr/sierra/) research groups, joint research teams between [Inria](https://www.inria.fr/en), [École Normale Supérieure de Paris](https://www.ens.fr) and [Centre National de la Recherche Scientifique](https://www.cnrs.fr).
 
-## Quick install
+**ProxSuite** is integrated into the [cvxpy](https://www.cvxpy.org/) modeling language for convex optimization problems.
+
+## Getting started
 
 **ProxSuite** is distributed on many well-known package managers.
 
-### With <img src="https://www.python.org/static/community_logos/python-logo-inkscape.svg" height="30" style="vertical-align: -1em;">:
+### Quick install with <img src="https://www.python.org/static/community_logos/python-logo-inkscape.svg" height="30" style="vertical-align: -1em;">:
 
 ```bash
    pip install proxsuite
 ```
 This approach is only available on Linux and Mac OS X.
 
-### With <img src="https://s3.amazonaws.com/conda-dev/conda_logo.svg" height="18">:
+### Quick install with <img src="https://s3.amazonaws.com/conda-dev/conda_logo.svg" height="18">:
 
 ```bash
    conda install proxsuite -c conda-forge
@@ -34,8 +37,13 @@ This approach is available on Linux, Windows and Mac OS X.
 
 ### Alternative approaches
 
-Alternative installation procedures are presented in the [Installation Procedure](#installation-procedure) section.
+Installation from source is presented [here](https://github.com/Simple-Robotics/proxsuite/blob/main/doc/5-installation.md).
 
+### Compiling a program
+For the fastest performance use the following command to enable vectorization
+```bash
+g++ -O3 -march=native -DNDEBUG -std=gnu++17 -DPROXSUITE_VECTORIZE examples/benchmark_dense_qp.cpp -o benchmark_dense_qp $(pkg-config --cflags proxsuite)
+```
 ## ProxSuite main features
 
 **Proxsuite** is fast:

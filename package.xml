@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>proxsuite</name>
-  <version>0.1.2</version>
-  <description>Quadratic Programming Solver for Robotics and beyond</description>
+  <version>0.2.3</version>
+  <description>The Advanced Proximal Optimization Toolbox</description>
   <maintainer email="antoine.bambade@inria.fr">Antoine Bambade</maintainer>
   <maintainer email="fabian.schramm@inria.fr">Fabian Schramm</maintainer>
   <maintainer email="justin.carpentier@inria.fr">Justin Carpentier</maintainer>

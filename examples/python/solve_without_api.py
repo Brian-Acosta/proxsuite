@@ -4,7 +4,7 @@ import scipy.sparse as spa
 
 
 def generate_mixed_qp(n, seed=1):
-    # A function for generating random convex qps
+    # A function for generating sparse random convex qps in dense format
 
     np.random.seed(seed)
     n_eq = int(n / 4)
@@ -36,10 +36,15 @@ n_in = 2
 H, g, A, b, C, u, l = generate_mixed_qp(n)
 
 # solve the problem using the sparse backend
-results = proxsuite.proxqp.sparse.solve(H, g, A, b, C, u, l)
+results = proxsuite.proxqp.sparse.solve(H, g, A, b, C, l, u)
 
 # solve the problem using the dense backend
-results2 = proxsuite.proxqp.dense.solve(H, g, A, b, C, u, l)
+
+results2 = proxsuite.proxqp.dense.solve(
+    H.toarray(), g, A.toarray(), b, C.toarray(), l, u
+)
+# Note finally, that the matrices are in sparse format, when using the dense backend you
+# should convert them in dense format
 
 # print an optimal solution
 print("optimal x: {}".format(results.x))

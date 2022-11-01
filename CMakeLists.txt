@@ -67,6 +67,7 @@ set(CMAKE_MODULE_PATH
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake-external"
                       ${CMAKE_MODULE_PATH})
 
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 if(INITIALIZE_EIGEN_WITH_NAN)
   add_definitions(-DEIGEN_INITIALIZE_MATRICES_BY_NAN)
 endif(INITIALIZE_EIGEN_WITH_NAN)
@@ -91,13 +92,17 @@ set(SIMDE_HINT_FAILURE
     "Set BUILD_WITH_VECTORIZATION_SUPPORT=OFF or install Simde on your system.\n If Simde is already installed, ensure that the CMake variable CMAKE_MODULE_PATH correctly points toward the location of FindSimde.cmake file."
 )
 if(BUILD_WITH_VECTORIZATION_SUPPORT)
-  add_project_dependency(Simde REQUIRED FIND_EXTERNAL "Simde")
+  add_project_dependency(Simde REQUIRED FIND_EXTERNAL "Simde"
+                         PKG_CONFIG_REQUIRES "simde")
 endif()
 
 # Build the main library
 file(GLOB_RECURSE ${PROJECT_NAME}_HEADERS ${PROJECT_SOURCE_DIR}/include/*.hpp)
 
 add_library(proxsuite INTERFACE)
+if(MSVC)
+  target_compile_options(proxsuite INTERFACE /permissive-)
+endif(MSVC)
 target_link_libraries(
   proxsuite
   PUBLIC

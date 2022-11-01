@@ -5,8 +5,8 @@
  * @file solver.hpp
  */
 
-#ifndef PROXSUITE_QP_DENSE_SOLVER_HPP
-#define PROXSUITE_QP_DENSE_SOLVER_HPP
+#ifndef PROXSUITE_PROXQP_DENSE_SOLVER_HPP
+#define PROXSUITE_PROXQP_DENSE_SOLVER_HPP
 
 #include "proxsuite/proxqp/dense/views.hpp"
 #include "proxsuite/proxqp/dense/linesearch.hpp"
@@ -1015,13 +1015,8 @@ qp_solve( //
 
     T rhs_pri(qpsettings.eps_abs);
     if (qpsettings.eps_rel != 0) {
-      rhs_pri +=
-        qpsettings.eps_rel *
-        std::max(
-          std::max(primal_feasibility_eq_rhs_0, primal_feasibility_in_rhs_0),
-          std::max(std::max(qpwork.primal_feasibility_rhs_1_eq,
-                            qpwork.primal_feasibility_rhs_1_in_u),
-                   qpwork.primal_feasibility_rhs_1_in_l));
+      rhs_pri += qpsettings.eps_rel * std::max(primal_feasibility_eq_rhs_0,
+                                               primal_feasibility_in_rhs_0);
     }
     bool is_primal_feasible = primal_feasibility_lhs <= rhs_pri;
 
@@ -1037,36 +1032,6 @@ qp_solve( //
     bool is_dual_feasible = dual_feasibility_lhs <= rhs_dua;
 
     if (qpsettings.verbose) {
-      /* TO PUT IN DEBUG MODE
-      std::cout << "---------------it : " << iter
-                                              << " primal residual : " <<
-      primal_feasibility_lhs
-                                              << " dual residual : " <<
-      dual_feasibility_lhs << std::endl; std::cout << "bcl_eta_ext : " <<
-      bcl_eta_ext
-                                              << " bcl_eta_in : " << bcl_eta_in
-                                              << " rho : " << qpresults.info.rho
-                                              << " bcl_mu_eq : " <<
-      qpresults.info.mu_eq
-                                              << " bcl_mu_in : " <<
-      qpresults.info.mu_in << std::endl; std::cout << "qpsettings.eps_abs " <<
-      qpsettings.eps_abs
-                                              << "  qpsettings.eps_rel *rhs "
-                                              << qpsettings.eps_rel *
-                                                                       std::max(
-                                                                                       std::max(
-                                                                                                       primal_feasibility_eq_rhs_0,
-                                                                                                       primal_feasibility_in_rhs_0),
-                                                                                       std::max(
-                                                                                                       std::max(
-                                                                                                                       qpwork.primal_feasibility_rhs_1_eq,
-                                                                                                                       qpwork.primal_feasibility_rhs_1_in_u),
-                                                                                                       qpwork.primal_feasibility_rhs_1_in_l))
-                                              << std::endl;
-      std::cout << "is_primal_feasible " << is_primal_feasible
-                                              << " is_dual_feasible " <<
-      is_dual_feasible << std::endl;
-      */
 
       ruiz.unscale_primal_in_place(VectorViewMut<T>{ from_eigen, qpresults.x });
       ruiz.unscale_dual_in_place_eq(
@@ -1164,11 +1129,7 @@ qp_solve( //
       primal_feasibility_lhs_new <=
       (qpsettings.eps_abs +
        qpsettings.eps_rel *
-         std::max(
-           std::max(primal_feasibility_eq_rhs_0, primal_feasibility_in_rhs_0),
-           std::max(std::max(qpwork.primal_feasibility_rhs_1_eq,
-                             qpwork.primal_feasibility_rhs_1_in_u),
-                    qpwork.primal_feasibility_rhs_1_in_l)));
+         std::max(primal_feasibility_eq_rhs_0, primal_feasibility_in_rhs_0));
     qpresults.info.pri_res = primal_feasibility_lhs_new;
     if (is_primal_feasible) {
       T dual_feasibility_lhs_new(dual_feasibility_lhs);
@@ -1271,6 +1232,7 @@ qp_solve( //
 
   {
     // EigenAllowAlloc _{};
+    qpresults.info.objValue = 0;
     for (Eigen::Index j = 0; j < qpmodel.dim; ++j) {
       qpresults.info.objValue +=
         0.5 * (qpresults.x(j) * qpresults.x(j)) * qpmodel.H(j, j);
@@ -1363,4 +1325,4 @@ qp_solve( //
 } // namespace proxqp
 } // namespace proxsuite
 
-#endif /* end of include guard PROXSUITE_QP_DENSE_SOLVER_HPP */
+#endif /* end of include guard PROXSUITE_PROXQP_DENSE_SOLVER_HPP */

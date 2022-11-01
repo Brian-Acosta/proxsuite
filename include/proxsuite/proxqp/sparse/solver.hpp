@@ -3,8 +3,8 @@
 //
 /** \file */
 
-#ifndef PROXSUITE_QP_SPARSE_SOLVER_HPP
-#define PROXSUITE_QP_SPARSE_SOLVER_HPP
+#ifndef PROXSUITE_PROXQP_SPARSE_SOLVER_HPP
+#define PROXSUITE_PROXQP_SPARSE_SOLVER_HPP
 
 #include <chrono>
 #include <proxsuite/linalg/dense/core.hpp>
@@ -519,9 +519,6 @@ qp_solve(Results<T>& results,
     { proxsuite::linalg::sparse::from_eigen, u_scaled_e },
   };
 
-  T const primal_feasibility_rhs_1_eq = infty_norm(data.b);
-  T const primal_feasibility_rhs_1_in_u = infty_norm(data.u);
-  T const primal_feasibility_rhs_1_in_l = infty_norm(data.l);
   T const dual_feasibility_rhs_2 = infty_norm(data.g);
 
   // auto ldl_col_ptrs = work.ldl_col_ptrs_mut();
@@ -756,13 +753,9 @@ qp_solve(Results<T>& results,
       auto is_primal_feasible = [&](T primal_feasibility_lhs) -> bool {
         T rhs_pri = settings.eps_abs;
         if (settings.eps_rel != 0) {
-          rhs_pri += settings.eps_rel * std::max({
-                                          primal_feasibility_eq_rhs_0,
-                                          primal_feasibility_in_rhs_0,
-                                          primal_feasibility_rhs_1_eq,
-                                          primal_feasibility_rhs_1_in_l,
-                                          primal_feasibility_rhs_1_in_u,
-                                        });
+          rhs_pri +=
+            settings.eps_rel * std::max({ primal_feasibility_eq_rhs_0,
+                                          primal_feasibility_in_rhs_0 });
         }
         return primal_feasibility_lhs <= rhs_pri;
       };
@@ -1429,4 +1422,4 @@ qp_solve(Results<T>& results,
 } // namespace proxqp
 } // namespace proxsuite
 
-#endif /* end of include guard PROXSUITE_QP_SPARSE_SOLVER_HPP */
+#endif /* end of include guard PROXSUITE_PROXQP_SPARSE_SOLVER_HPP */

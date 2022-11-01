@@ -5,8 +5,8 @@
  * @file helpers.hpp
  */
 
-#ifndef PROXSUITE_QP_DENSE_HELPERS_HPP
-#define PROXSUITE_QP_DENSE_HELPERS_HPP
+#ifndef PROXSUITE_PROXQP_DENSE_HELPERS_HPP
+#define PROXSUITE_PROXQP_DENSE_HELPERS_HPP
 
 #include <proxsuite/proxqp/results.hpp>
 #include <proxsuite/proxqp/settings.hpp>
@@ -161,7 +161,7 @@ initial_guess(Workspace<T>& qpwork,
  * @param A equality constraint matrix input defining the QP model.
  * @param b equality constraint vector input defining the QP model.
  * @param C inequality constraint matrix input defining the QP model.
- * @param u lower inequality constraint vector input defining the QP model.
+ * @param u upper inequality constraint vector input defining the QP model.
  * @param l lower inequality constraint vector input defining the QP model.
  * @param qpwork solver workspace.
  * @param qpsettings solver settings.
@@ -311,7 +311,7 @@ update(std::optional<Mat> H_,
  * @param A equality constraint matrix input defining the QP model.
  * @param b equality constraint vector input defining the QP model.
  * @param C inequality constraint matrix input defining the QP model.
- * @param u lower inequality constraint vector input defining the QP model.
+ * @param u upper inequality constraint vector input defining the QP model.
  * @param l lower inequality constraint vector input defining the QP model.
  * @param qpwork solver workspace.
  * @param qpsettings solver settings.
@@ -330,8 +330,8 @@ setup( //
   std::optional<Mat> A,
   std::optional<VecRef<T>> b,
   std::optional<Mat> C,
-  std::optional<VecRef<T>> u,
   std::optional<VecRef<T>> l,
+  std::optional<VecRef<T>> u,
   Settings<T>& qpsettings,
   Model<T>& qpmodel,
   Workspace<T>& qpwork,
@@ -391,18 +391,14 @@ setup( //
     }
   }
   if (H != std::nullopt) {
-    qpmodel.H = Eigen::
-      Matrix<T, Eigen::Dynamic, Eigen::Dynamic, to_eigen_layout(rowmajor)>(
-        H.value());
+    qpmodel.H = H.value();
   } // else qpmodel.H remains initialzed to a matrix with zero elements
   if (g != std::nullopt) {
     qpmodel.g = g.value();
   }
 
   if (A != std::nullopt) {
-    qpmodel.A = Eigen::
-      Matrix<T, Eigen::Dynamic, Eigen::Dynamic, to_eigen_layout(rowmajor)>(
-        A.value());
+    qpmodel.A = A.value();
   } // else qpmodel.A remains initialized to a matrix with zero elements or zero
     // shape
 
@@ -412,9 +408,7 @@ setup( //
     // shape
 
   if (C != std::nullopt) {
-    qpmodel.C = Eigen::
-      Matrix<T, Eigen::Dynamic, Eigen::Dynamic, to_eigen_layout(rowmajor)>(
-        C.value());
+    qpmodel.C = C.value();
   } // else qpmodel.C remains initialized to a matrix with zero elements or zero
     // shape
 
@@ -444,9 +438,6 @@ setup( //
               Eigen::Matrix<T, Eigen::Dynamic, 1>::Zero(qpmodel.n_in).array() -
                 T(1.E20));
 
-  qpwork.primal_feasibility_rhs_1_eq = infty_norm(qpmodel.b);
-  qpwork.primal_feasibility_rhs_1_in_u = infty_norm(qpwork.u_scaled);
-  qpwork.primal_feasibility_rhs_1_in_l = infty_norm(qpwork.l_scaled);
   qpwork.dual_feasibility_rhs_2 = infty_norm(qpmodel.g);
 
   switch (preconditioner_status) {
@@ -588,4 +579,4 @@ warm_start(std::optional<VecRef<T>> x_wm,
 } // namespace proxqp
 } // namespace proxsuite
 
-#endif /* end of include guard PROXSUITE_QP_DENSE_HELPERS_HPP */
+#endif /* end of include guard PROXSUITE_PROXQP_DENSE_HELPERS_HPP */

@@ -13,7 +13,167 @@ using T = double;
 using I = c_int;
 using namespace proxsuite::linalg::sparse::tags;
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with inequality constraints"
+  "and empty equality constraints")
+{
+  std::cout << "---testing sparse random strongly convex qp with inequality "
+               "constraints "
+               "and empty equality constraints---"
+            << std::endl;
+  for (auto const& dims : { // proxsuite::linalg::veg::tuplify(50, 0, 0),
+                            // proxsuite::linalg::veg::tuplify(50, 25, 0),
+                            // proxsuite::linalg::veg::tuplify(10, 0, 10),
+                            // proxsuite::linalg::veg::tuplify(50, 0, 25),
+                            // proxsuite::linalg::veg::tuplify(50, 10, 25),
+                            proxsuite::linalg::veg::tuplify(10, 0, 2) }) {
+    VEG_BIND(auto const&, (n, n_eq, n_in), dims);
+
+    T sparsity_factor = 0.15;
+    T strong_convexity_factor = 0.01;
+    ::proxsuite::proxqp::utils::rand::set_seed(1);
+    proxqp::sparse::SparseModel<T> qp_random = utils::sparse_strongly_convex_qp(
+      n, n_eq, n_in, sparsity_factor, strong_convexity_factor);
+
+    // Testing with empty but properly sized matrix A  of size (0, 10)
+    std::cout << "Solving QP with" << std::endl;
+    std::cout << "n: " << n << std::endl;
+    std::cout << "n_eq: " << n_eq << std::endl;
+    std::cout << "n_in: " << n_in << std::endl;
+    std::cout << "H :  " << qp_random.H << std::endl;
+    std::cout << "g :  " << qp_random.g << std::endl;
+    std::cout << "A :  " << qp_random.A << std::endl;
+    std::cout << "b :  " << qp_random.b << std::endl;
+    std::cout << "C :  " << qp_random.C << std::endl;
+    std::cout << "u :  " << qp_random.u << std::endl;
+    std::cout << "l :  " << qp_random.l << std::endl;
+
+    proxqp::sparse::QP<T, I> qp(n, n_eq, n_in);
+    qp.settings.eps_abs = 1.E-9;
+    qp.settings.verbose = false;
+    qp.init(qp_random.H,
+            qp_random.g,
+            qp_random.A,
+            qp_random.b,
+            qp_random.C,
+            qp_random.l,
+            qp_random.u,
+            true,
+            T(1.e-7),
+            std::nullopt,
+            std::nullopt);
+    std::cout << "after upating" << std::endl;
+    std::cout << "rho :  " << qp.results.info.rho << std::endl;
+    qp.solve();
+    T dua_res = proxqp::dense::infty_norm(
+      qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
+      qp_random.A.transpose() * qp.results.y +
+      qp_random.C.transpose() * qp.results.z);
+    T pri_res = std::max(
+      proxqp::dense::infty_norm(qp_random.A * qp.results.x - qp_random.b),
+      proxqp::dense::infty_norm(sparse::detail::positive_part(
+                                  qp_random.C * qp.results.x - qp_random.u) +
+                                sparse::detail::negative_part(
+                                  qp_random.C * qp.results.x - qp_random.l)));
+    CHECK(dua_res <= 1e-9);
+    CHECK(pri_res <= 1E-9);
+    std::cout << "--n = " << n << " n_eq " << n_eq << " n_in " << n_in
+              << std::endl;
+    std::cout << "; dual residual " << dua_res << "; primal residual "
+              << pri_res << std::endl;
+    std::cout << "total number of iteration: " << qp.results.info.iter
+              << std::endl;
+    std::cout << "setup timing " << qp.results.info.setup_time << " solve time "
+              << qp.results.info.solve_time << std::endl;
+
+    // Testing with empty matrix A  of size (0, 0)
+    qp_random.A = Eigen::SparseMatrix<double>();
+    qp_random.b = Eigen::VectorXd();
+
+    std::cout << "Solving QP with" << std::endl;
+    std::cout << "n: " << n << std::endl;
+    std::cout << "n_eq: " << n_eq << std::endl;
+    std::cout << "n_in: " << n_in << std::endl;
+    std::cout << "H :  " << qp_random.H << std::endl;
+    std::cout << "g :  " << qp_random.g << std::endl;
+    std::cout << "A :  " << qp_random.A << std::endl;
+    std::cout << "b :  " << qp_random.b << std::endl;
+    std::cout << "C :  " << qp_random.C << std::endl;
+    std::cout << "u :  " << qp_random.u << std::endl;
+    std::cout << "l :  " << qp_random.l << std::endl;
+
+    proxqp::sparse::QP<T, I> qp2(n, n_eq, n_in);
+    qp2.settings.eps_abs = 1.E-9;
+    qp2.settings.verbose = false;
+    qp2.init(qp_random.H,
+             qp_random.g,
+             qp_random.A,
+             qp_random.b,
+             qp_random.C,
+             qp_random.l,
+             qp_random.u,
+             true,
+             T(1.e-7),
+             std::nullopt,
+             std::nullopt);
+    std::cout << "after upating" << std::endl;
+    std::cout << "rho :  " << qp2.results.info.rho << std::endl;
+    qp2.solve();
+    dua_res = proxqp::dense::infty_norm(
+      qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
+      qp_random.C.transpose() * qp.results.z);
+    pri_res = proxqp::dense::infty_norm(
+      sparse::detail::positive_part(qp_random.C * qp.results.x - qp_random.u) +
+      sparse::detail::negative_part(qp_random.C * qp.results.x - qp_random.l));
+    CHECK(dua_res <= 1e-9);
+    CHECK(pri_res <= 1E-9);
+    std::cout << "--n = " << n << " n_eq " << n_eq << " n_in " << n_in
+              << std::endl;
+    std::cout << "; dual residual " << dua_res << "; primal residual "
+              << pri_res << std::endl;
+    std::cout << "total number of iteration: " << qp.results.info.iter
+              << std::endl;
+    std::cout << "setup timing " << qp.results.info.setup_time << " solve time "
+              << qp.results.info.solve_time << std::endl;
+
+    // Testing with nullopt
+    proxqp::sparse::QP<T, I> qp3(n, n_eq, n_in);
+    qp3.settings.eps_abs = 1.E-9;
+    qp3.settings.verbose = false;
+    qp3.init(qp_random.H,
+             qp_random.g,
+             std::nullopt,
+             std::nullopt,
+             qp_random.C,
+             qp_random.l,
+             qp_random.u,
+             true,
+             T(1.e-7),
+             std::nullopt,
+             std::nullopt);
+    std::cout << "after upating" << std::endl;
+    std::cout << "rho :  " << qp3.results.info.rho << std::endl;
+    qp3.solve();
+    dua_res = proxqp::dense::infty_norm(
+      qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
+      qp_random.C.transpose() * qp.results.z);
+    pri_res = proxqp::dense::infty_norm(
+      sparse::detail::positive_part(qp_random.C * qp.results.x - qp_random.u) +
+      sparse::detail::negative_part(qp_random.C * qp.results.x - qp_random.l));
+    CHECK(dua_res <= 1e-9);
+    CHECK(pri_res <= 1E-9);
+    std::cout << "--n = " << n << " n_eq " << n_eq << " n_in " << n_in
+              << std::endl;
+    std::cout << "; dual residual " << dua_res << "; primal residual "
+              << pri_res << std::endl;
+    std::cout << "total number of iteration: " << qp.results.info.iter
+              << std::endl;
+    std::cout << "setup timing " << qp.results.info.setup_time << " solve time "
+              << qp.results.info.solve_time << std::endl;
+  }
+}
+
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update rho")
 {
   std::cout << "------------------------sparse random strongly convex qp with "
@@ -41,8 +201,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true,
             T(1.e-7),
             std::nullopt,
@@ -73,7 +233,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update mus")
 {
 
@@ -101,8 +261,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true,
             std::nullopt,
             T(1.E-2),
@@ -164,8 +324,8 @@ TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             false);
     qp.solve();
 
@@ -192,7 +352,7 @@ TEST_CASE(
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test with equilibration at initialization")
 {
 
@@ -221,8 +381,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true);
     qp.solve();
 
@@ -248,7 +408,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               << qp.results.info.solve_time << std::endl;
   }
 }
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test with no initial guess")
 {
 
@@ -278,8 +438,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -305,7 +465,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update g for unconstrained problem")
 {
 
@@ -335,8 +495,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
     T dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
@@ -368,8 +528,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               false);
     proxsuite::linalg::sparse::MatMut<T, I> kkt_unscaled =
       qp.model.kkt_mut_unscaled();
@@ -406,7 +566,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test warm starting")
 {
 
@@ -433,8 +593,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     auto x_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n);
     auto y_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n_eq);
     auto z_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n_in);
@@ -501,8 +661,8 @@ DOCTEST_TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -535,8 +695,8 @@ DOCTEST_TEST_CASE(
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              true);
 
     auto x = qp.results.x;
@@ -587,8 +747,9 @@ DOCTEST_TEST_CASE(
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test with cold start option")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test with cold start option")
 {
 
   std::cout << "---testing sparse random strongly convex qp with equality and "
@@ -619,8 +780,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T pri_res = std::max(
@@ -652,8 +813,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
 
     auto x = qp.results.x;
     auto y = qp.results.y;
@@ -711,8 +872,9 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test equilibration option")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test equilibration option")
 {
 
   std::cout << "---testing sparse random strongly convex qp with equality and "
@@ -743,8 +905,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true);
     qp.solve();
 
@@ -775,8 +937,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              false);
     qp2.solve();
     pri_res = std::max(
@@ -802,8 +964,9 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test equilibration option at update")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test equilibration option at update")
 {
 
   std::cout << "---testing sparse random strongly convex qp with equality and "
@@ -834,8 +997,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true);
     qp.solve();
     T pri_res = std::max(
@@ -886,8 +1049,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              false);
 
     qp2.solve();
@@ -944,7 +1107,7 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test new init")
 {
 
@@ -971,8 +1134,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     auto x_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n);
     auto y_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n_eq);
     auto z_wm = ::proxsuite::proxqp::utils::rand::vector_rand<T>(n_in);
@@ -1005,7 +1168,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test new init")
 {
 
@@ -1033,8 +1196,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1066,8 +1229,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp2.solve();
 
     dua_res = proxqp::dense::infty_norm(
@@ -1130,8 +1293,8 @@ TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1229,7 +1392,7 @@ TEST_CASE(
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test multiple solve at once with equality "
           "constrained initial guess")
 {
@@ -1265,8 +1428,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1364,7 +1527,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test multiple solve at once with equality "
           "constrained initial guess")
 {
@@ -1402,8 +1565,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1541,8 +1704,8 @@ TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1642,7 +1805,7 @@ TEST_CASE(
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test multiple solve at once with cold start "
           "initial guess")
 {
@@ -1680,8 +1843,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1781,7 +1944,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test multiple solve at once with warm start")
 {
 
@@ -1817,8 +1980,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1918,7 +2081,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: warm start test from init")
 {
 
@@ -1954,8 +2117,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -1987,8 +2150,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp2.settings.eps_abs = 1.E-9;
     qp2.settings.initial_guess =
       proxsuite::proxqp::InitialGuessStatus::WARM_START;
@@ -2021,7 +2184,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
 
 /// TESTS WITH UPDATE + INITIAL GUESS OPTIONS
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update and multiple solve at once with "
           "no initial guess")
 {
@@ -2057,8 +2220,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2091,8 +2254,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     std::cout << "dirty workspace after update : " << qp.work.internal.dirty
               << std::endl;
@@ -2169,7 +2332,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update + multiple solve at once with "
           "equality constrained initial guess")
 {
@@ -2205,8 +2368,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2239,8 +2402,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     std::cout << "dirty workspace after update : " << qp.work.internal.dirty
               << std::endl;
@@ -2356,8 +2519,8 @@ TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2392,8 +2555,8 @@ TEST_CASE(
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     std::cout << "dirty workspace after update : " << qp.work.internal.dirty
               << std::endl;
@@ -2508,8 +2671,8 @@ TEST_CASE(
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2544,8 +2707,8 @@ TEST_CASE(
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     qp.solve();
     dua_res = proxqp::dense::infty_norm(
@@ -2620,7 +2783,7 @@ TEST_CASE(
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update + multiple solve at once with "
           "cold start initial guess and then cold start option")
 {
@@ -2658,8 +2821,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2770,7 +2933,7 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("sparse random strongly convex qp with equality and "
+TEST_CASE("ProxQP::sparse: sparse random strongly convex qp with equality and "
           "inequality constraints: test update + multiple solve at once with "
           "warm start")
 {
@@ -2807,8 +2970,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
 
     T dua_res = proxqp::dense::infty_norm(
@@ -2845,8 +3008,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     std::cout << "dirty workspace after update: " << qp.work.internal.dirty
               << std::endl;
@@ -2885,8 +3048,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
               qp_random.A,
               qp_random.b,
               qp_random.C,
-              qp_random.u,
               qp_random.l,
+              qp_random.u,
               update_preconditioner);
     std::cout << "dirty workspace after update: " << qp.work.internal.dirty
               << std::endl;
@@ -2963,7 +3126,8 @@ TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-TEST_CASE("Test initializaton with rho for different initial guess")
+TEST_CASE(
+  "ProxQP::sparse: Test initializaton with rho for different initial guess")
 {
 
   for (auto const& dims : { // proxsuite::linalg::veg::tuplify(50, 0, 0),
@@ -3000,8 +3164,8 @@ TEST_CASE("Test initializaton with rho for different initial guess")
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
             qp_random.l,
+            qp_random.u,
             true,
             T(1.E-7));
     qp.solve();
@@ -3036,8 +3200,8 @@ TEST_CASE("Test initializaton with rho for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              true,
              T(1.E-7));
     qp2.solve();
@@ -3072,8 +3236,8 @@ TEST_CASE("Test initializaton with rho for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              true,
              T(1.E-7));
     qp3.solve();
@@ -3108,8 +3272,8 @@ TEST_CASE("Test initializaton with rho for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              true,
              T(1.E-7));
     qp4.solve();
@@ -3144,8 +3308,8 @@ TEST_CASE("Test initializaton with rho for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
              qp_random.l,
+             qp_random.u,
              true,
              T(1.E-7));
     qp5.solve(qp3.results.x, qp3.results.y, qp3.results.z);
@@ -3173,7 +3337,7 @@ TEST_CASE("Test initializaton with rho for different initial guess")
   }
 }
 
-TEST_CASE("Test g update for different initial guess")
+TEST_CASE("ProxQP::sparse: Test g update for different initial guess")
 {
 
   for (auto const& dims : { // proxsuite::linalg::veg::tuplify(50, 0, 0),
@@ -3209,8 +3373,8 @@ TEST_CASE("Test g update for different initial guess")
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
     T dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
@@ -3264,8 +3428,8 @@ TEST_CASE("Test g update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp2.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp2.results.x +
@@ -3318,8 +3482,8 @@ TEST_CASE("Test g update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp3.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp3.results.x +
@@ -3372,8 +3536,8 @@ TEST_CASE("Test g update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp4.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp4.results.x +
@@ -3426,8 +3590,8 @@ TEST_CASE("Test g update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp5.solve(qp3.results.x, qp3.results.y, qp3.results.z);
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp5.results.x +
@@ -3473,7 +3637,7 @@ TEST_CASE("Test g update for different initial guess")
   }
 }
 
-TEST_CASE("Test A update for different initial guess")
+TEST_CASE("ProxQP::sparse: Test A update for different initial guess")
 {
 
   for (auto const& dims : { // proxsuite::linalg::veg::tuplify(50, 0, 0),
@@ -3510,8 +3674,8 @@ TEST_CASE("Test A update for different initial guess")
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
     T dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
@@ -3578,8 +3742,8 @@ TEST_CASE("Test A update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp2.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp2.results.x +
@@ -3643,8 +3807,8 @@ TEST_CASE("Test A update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp3.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp3.results.x +
@@ -3708,8 +3872,8 @@ TEST_CASE("Test A update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp4.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp4.results.x +
@@ -3773,8 +3937,8 @@ TEST_CASE("Test A update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp5.solve(qp3.results.x, qp3.results.y, qp3.results.z);
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp5.results.x +
@@ -3831,7 +3995,7 @@ TEST_CASE("Test A update for different initial guess")
   }
 }
 
-TEST_CASE("Test rho update for different initial guess")
+TEST_CASE("ProxQP::sparse: Test rho update for different initial guess")
 {
 
   for (auto const& dims : { // proxsuite::linalg::veg::tuplify(50, 0, 0),
@@ -3868,8 +4032,8 @@ TEST_CASE("Test rho update for different initial guess")
             qp_random.A,
             qp_random.b,
             qp_random.C,
-            qp_random.u,
-            qp_random.l);
+            qp_random.l,
+            qp_random.u);
     qp.solve();
     T dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp.results.x + qp_random.g +
@@ -3925,8 +4089,8 @@ TEST_CASE("Test rho update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp2.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp2.results.x +
@@ -3981,8 +4145,8 @@ TEST_CASE("Test rho update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp3.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp3.results.x +
@@ -4037,8 +4201,8 @@ TEST_CASE("Test rho update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp4.solve();
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp4.results.x +
@@ -4093,8 +4257,8 @@ TEST_CASE("Test rho update for different initial guess")
              qp_random.A,
              qp_random.b,
              qp_random.C,
-             qp_random.u,
-             qp_random.l);
+             qp_random.l,
+             qp_random.u);
     qp5.solve(qp3.results.x, qp3.results.y, qp3.results.z);
     dua_res = proxqp::dense::infty_norm(
       qp_random.H.selfadjointView<Eigen::Upper>() * qp5.results.x +
@@ -4142,9 +4306,10 @@ TEST_CASE("Test rho update for different initial guess")
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after updates using no initial guess")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after updates using no initial guess")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -4180,8 +4345,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -4243,8 +4408,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -4282,8 +4447,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -4339,9 +4504,10 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   DOCTEST_CHECK(dua_res <= eps_abs);
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after updates using EQUALITY_CONSTRAINED_INITIAL_GUESS")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after updates using EQUALITY_CONSTRAINED_INITIAL_GUESS")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -4378,8 +4544,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -4442,8 +4608,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -4482,8 +4648,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -4539,9 +4705,10 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   DOCTEST_CHECK(dua_res <= eps_abs);
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after updates using COLD_START_WITH_PREVIOUS_RESULT")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after updates using COLD_START_WITH_PREVIOUS_RESULT")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -4578,8 +4745,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -4642,8 +4809,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -4682,8 +4849,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -4739,9 +4906,10 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   DOCTEST_CHECK(dua_res <= eps_abs);
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after updates using WARM_START_WITH_PREVIOUS_RESULT")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after updates using WARM_START_WITH_PREVIOUS_RESULT")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -4778,8 +4946,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -4842,8 +5010,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -4882,8 +5050,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -4939,9 +5107,10 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   DOCTEST_CHECK(dua_res <= eps_abs);
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after several solves using no initial guess")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after several solves using no initial guess")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -4985,8 +5154,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -5064,8 +5233,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -5112,8 +5281,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -5227,8 +5396,8 @@ DOCTEST_TEST_CASE(
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -5307,8 +5476,8 @@ DOCTEST_TEST_CASE(
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -5356,8 +5525,8 @@ DOCTEST_TEST_CASE(
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -5423,9 +5592,10 @@ DOCTEST_TEST_CASE(
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after several solves using cold start with previous result")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after several solves using cold start with previous result")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -5470,8 +5640,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -5550,8 +5720,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -5599,8 +5769,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
@@ -5666,9 +5836,10 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
   }
 }
 
-DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
-                  "inequality constraints: test changing default settings "
-                  "after several solves using warm start with previous result")
+DOCTEST_TEST_CASE(
+  "ProxQP::sparse: sparse random strongly convex qp with equality and "
+  "inequality constraints: test changing default settings "
+  "after several solves using warm start with previous result")
 {
   std::cout << "---testing sparse random strongly convex qp with equality and "
                "inequality constraints: test changing default settings after "
@@ -5713,8 +5884,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
           qp_random.A,
           qp_random.b,
           qp_random.C,
-          qp_random.u,
           qp_random.l,
+          qp_random.u,
           compute_preconditioner,
           rho);
   DOCTEST_CHECK(std::abs(rho - qp.settings.default_rho) <= 1.E-9);
@@ -5793,8 +5964,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            std::nullopt,
            mu_eq);
@@ -5842,8 +6013,8 @@ DOCTEST_TEST_CASE("sparse random strongly convex qp with equality and "
            qp_random.A,
            qp_random.b,
            qp_random.C,
-           qp_random.u,
            qp_random.l,
+           qp_random.u,
            compute_preconditioner,
            rho,
            mu_eq);
