@@ -2,5 +2,6 @@ build*
 Xcode*
 *.pyc
 .vscode*
+.clwb
 
 bazel-*

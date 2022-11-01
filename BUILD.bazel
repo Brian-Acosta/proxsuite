@@ -6,12 +6,13 @@ package(default_visibility = ["//visibility:public"])
 
 cmake(
     name = "proxsuite",
-    lib_source = ":proxsuite_srcs",
     cache_entries = {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_TESTING": "OFF",
         "BUILD_PYTHON_INTERFACE": "OFF",
     },
+    lib_source = ":proxsuite_srcs",
+    out_headers_only = True
 )
 
 filegroup(

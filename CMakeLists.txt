@@ -50,7 +50,7 @@ apply_default_apple_configuration()
 
 option(BUILD_PYTHON_INTERFACE "Build the Python bindings" OFF)
 option(INSTALL_DOCUMENTATION "Generate and install the C++ documentation" OFF)
-option(INITIALIZE_EIGEN_WITH_NAN "Initializa Eigen objects with NAN values" OFF)
+option(INITIALIZE_EIGEN_WITH_NAN "Initialize Eigen objects with NAN values" OFF)
 option(SUFFIX_SO_VERSION "Suffix library name with its version" ON)
 
 option(BUILD_WITH_VECTORIZATION_SUPPORT
